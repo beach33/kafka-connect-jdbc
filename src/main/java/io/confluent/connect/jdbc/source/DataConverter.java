@@ -38,6 +38,7 @@ import java.sql.Types;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
+import java.math.BigDecimal;
 
 
 /**
@@ -175,6 +176,21 @@ public class DataConverter {
       }
 
       case Types.NUMERIC:
+        int precision = metadata.getPrecision(col);
+        if (metadata.getScale(col) == 0 && precision < 20) { // integer
+          Schema schema;
+          if (precision > 10) {
+            schema = (optional) ? Schema.OPTIONAL_INT64_SCHEMA : Schema.INT64_SCHEMA;
+          } else if (precision > 5) {
+            schema = (optional) ? Schema.OPTIONAL_INT32_SCHEMA : Schema.INT32_SCHEMA;
+          } else if (precision > 3) {
+            schema = (optional) ? Schema.OPTIONAL_INT16_SCHEMA : Schema.INT16_SCHEMA;
+          } else {
+            schema = (optional) ? Schema.OPTIONAL_INT8_SCHEMA : Schema.INT8_SCHEMA;
+          }
+          builder.field(fieldName, schema);
+          break;
+        }
       case Types.DECIMAL: {
         SchemaBuilder fieldBuilder = Decimal.builder(metadata.getScale(col));
         if (optional) {
@@ -326,8 +342,28 @@ public class DataConverter {
       }
 
       case Types.NUMERIC:
+        ResultSetMetaData metadata = resultSet.getMetaData();
+        int precision = metadata.getPrecision(col);
+        if (metadata.getScale(col) == 0 && precision < 20) { // integer
+          if (precision > 10) {
+            colValue = resultSet.getLong(col);
+          } else if (precision > 5) {
+            colValue = resultSet.getInt(col);
+          } else if (precision > 3) {
+            colValue = resultSet.getShort(col);
+          } else {
+            colValue = resultSet.getByte(col);
+          }
+          break;
+        }
       case Types.DECIMAL: {
-        colValue = resultSet.getBigDecimal(col);
+        int scale = resultSet.getMetaData().getScale(col);
+        BigDecimal bigDecimalValue = resultSet.getBigDecimal(col);
+        if (bigDecimalValue == null) {
+          colValue = null;
+        } else {
+          colValue = resultSet.getBigDecimal(col).setScale(scale);
+        }
         break;
       }
 
