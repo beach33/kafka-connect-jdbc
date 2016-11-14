@@ -352,7 +352,7 @@ public class DataConverter {
           } else if (precision > 3) {
             colValue = resultSet.getShort(col);
           } else {
-            colValue = resultSet.getByte(col);
+            colValue = resultSet.getLong(col);
           }
           break;
         }
