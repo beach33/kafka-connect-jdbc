@@ -60,6 +60,8 @@ public class TimestampIncrementingTableQuerier extends TableQuerier {
   private static final Calendar UTC_CALENDAR = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
   private static final BigDecimal LONG_MAX_VALUE_AS_BIGDEC = new BigDecimal(Long.MAX_VALUE);
 
+  private static final int MAX_FETCH_SIZE = 1000000;
+  
   private String timestampColumn;
   private String incrementingColumn;
   private long timestampDelay;
@@ -122,7 +124,9 @@ public class TimestampIncrementingTableQuerier extends TableQuerier {
       builder.append(" > ?");
       builder.append(") OR ");
       builder.append(JdbcUtils.quoteString(timestampColumn, quoteString));
-      builder.append(" > ?)");
+      builder.append(" > ?) AND ");
+      builder.append(JdbcUtils.quoteString(incrementingColumn, quoteString));
+      builder.append(" < ?");
       builder.append(" ORDER BY ");
       builder.append(JdbcUtils.quoteString(timestampColumn, quoteString));
       builder.append(",");
@@ -131,7 +135,9 @@ public class TimestampIncrementingTableQuerier extends TableQuerier {
     } else if (incrementingColumn != null) {
       builder.append(" WHERE ");
       builder.append(JdbcUtils.quoteString(incrementingColumn, quoteString));
-      builder.append(" > ?");
+      builder.append(" > ?) AND ");
+      builder.append(JdbcUtils.quoteString(incrementingColumn, quoteString));
+      builder.append(" < ?");
       builder.append(" ORDER BY ");
       builder.append(JdbcUtils.quoteString(incrementingColumn, quoteString));
       builder.append(" ASC");
@@ -159,6 +165,11 @@ public class TimestampIncrementingTableQuerier extends TableQuerier {
       stmt.setTimestamp(2, tsOffset, UTC_CALENDAR);
       stmt.setLong(3, incOffset);
       stmt.setTimestamp(4, tsOffset, UTC_CALENDAR);
+      
+      stmt.setLong(5, incOffset + MAX_FETCH_SIZE);
+      
+      //TODO: add the incOffset here
+      
       log.debug("Executing prepared statement with start time value = {} end time = {} and incrementing value = {}",
               JdbcUtils.formatUTC(tsOffset),
               JdbcUtils.formatUTC(endTime),
@@ -166,6 +177,7 @@ public class TimestampIncrementingTableQuerier extends TableQuerier {
     } else if (incrementingColumn != null) {
       Long incOffset = offset.getIncrementingOffset();
       stmt.setLong(1, incOffset);
+      stmt.setLong(2, incOffset + MAX_FETCH_SIZE);
       log.debug("Executing prepared statement with incrementing value = {}", incOffset);
     } else if (timestampColumn != null) {
       Timestamp tsOffset = offset.getTimestampOffset();
